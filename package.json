@@ -15,6 +15,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "minify": "html-minifier-terser _react-sandbox.html --output _react-sandbox.min.html --collapse-whitespace --remove-comments --remove-empty-attributes --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --minify-css true --minify-js \"{}\""
+    "minify-sandbox": "html-minifier-terser src/sandbox/react-sandbox.html --output src/sandbox/react-sandbox.min.html --collapse-whitespace --remove-comments --remove-empty-attributes --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --minify-css true --minify-js \"{}\"",
+    "minify-sandbox-tasks-answers": "html-minifier-terser src/sandbox/react-sandbox-tasks-answers.html --output src/sandbox/react-sandbox-tasks-answers.min.html --collapse-whitespace --remove-comments --remove-empty-attributes --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --minify-css true --minify-js \"{}\""
   }
 }

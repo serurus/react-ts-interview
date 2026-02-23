@@ -1,1 +1,11 @@
-Simple App with react components
+FILES
+react-sandbox.html - App to work with a test
+react-sandbox-tasks-answers.html - App to prepare tests and answers
+tasks-import-2026-02-23.json - some tests on 2026-02-23
+react-sandbox-with-todos.html - App with Todos and logging
+
+EXPORT/RESTORE
+export files to restore-DATE.js and tasks-import-DATE.json
+import tasks and other files from restore-DATE.js
+import tasks only from tasks-import-DATE.json
+

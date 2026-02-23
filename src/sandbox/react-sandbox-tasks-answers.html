@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>React Interview Sandbox</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #1e1e1e;
+      color: #ffffff;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      background: #1e1e1e;
+      border-bottom: 1px solid #3e3e42;
+      flex-shrink: 0;
+    }
+
+    .toolbar-btn {
+      background: #007acc;
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    .toolbar-btn:hover {
+      background: #005a9e;
+    }
+
+    .toolbar-section {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .toolbar-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .toolbar-subtitle {
+      font-size: 11px;
+      color: #f7b500;
+      max-width: 500px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #main-content {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      background: #252526;
+      border-right: 1px solid #3e3e42;
+      transition: width 0.3s ease;
+      position: relative;
+    }
+
+    .left-panel {
+      width: 250px;
+      min-width: 250px;
+    }
+
+    .left-panel.collapsed {
+      width: 45px;
+      min-width: 45px;
+    }
+
+    .left-panel.expanded {
+      width: 50%;
+      min-width: 50%;
+    }
+
+    #editor-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      order: 2;
+    }
+
+    .right-panel {
+      width: calc(100% / 3);
+      min-width: calc(100% / 3);
+      border-left: 1px solid #3e3e42;
+      transition: width 0.3s ease;
+      order: 3;
+    }
+
+    .right-panel.collapsed {
+      width: 50px;
+      min-width: 50px;
+    }
+
+    .right-panel.expanded {
+      width: 50%;
+      min-width: 50%;
+    }
+
+    .left-panel {
+      order: 1;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background: #1e1e1e;
+      border-bottom: 1px solid #3e3e42;
+      user-select: none;
+      min-height: 45px;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .left-panel.collapsed .panel-title,
+    .right-panel.collapsed .panel-title {
+      display: none;
+    }
+
+    .collapse-btn, .expand-btn {
+      background: none;
+      border: none;
+      color: #858585;
+      cursor: pointer;
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: color 0.2s;
+      flex-shrink: 0;
+      min-width: 30px;
+      height: 30px;
+    }
+
+    .collapse-btn:hover, .expand-btn:hover {
+      color: #ffffff;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #file-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 0;
+      font-size: 13px;
+    }
+
+    .tree-node {
+      display: flex;
+      align-items: center;
+      padding: 4px 8px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+      position: relative;
+      height: 24px;
+      min-width: 0;
+    }
+
+    .tree-node:hover {
+      background: #2d2d30;
+    }
+
+    .tree-node:hover .node-actions {
+      display: flex !important;
+    }
+
+    .tree-node.active {
+      background: #007acc;
+      color: white;
+    }
+
+    .tree-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .tree-toggle.expanded::before {
+      content: "▼";
+      font-size: 10px;
+    }
+
+    .tree-toggle.collapsed::before {
+      content: "▶";
+      font-size: 10px;
+    }
+
+    .tree-toggle.no-children {
+      visibility: hidden;
+    }
+
+    .tree-icon {
+      margin: 0 4px;
+      font-size: 14px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .tree-label {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    .tree-node[title] {
+      position: relative;
+    }
+
+    .tree-children {
+      display: none;
+      margin-left: 0;
+    }
+
+    .tree-children.expanded {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tree-folder .tree-children {
+      border-left: 1px solid #3e3e42;
+      margin-left: 8px;
+      padding-left: 0;
+    }
+
+    .node-actions {
+      display: none;
+      gap: 4px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    .node-action-btn {
+      background: none;
+      border: none;
+      color: #858585;
+      cursor: pointer;
+      padding: 2px 4px;
+      font-size: 12px;
+      transition: color 0.2s;
+      flex-shrink: 0;
+    }
+
+    .node-action-btn:hover {
+      color: #ff6b6b;
+    }
+
+    .node-action-btn.edit:hover {
+      color: #4fc3f7;
+    }
+
+    .node-action-btn.activate:hover {
+      color: #4caf50;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    #preview {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: white;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #252526;
+      border: 1px solid #3e3e42;
+      border-radius: 8px;
+      padding: 20px;
+      min-width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-content h3 {
+      margin-bottom: 15px;
+      color: #cccccc;
+    }
+
+    .modal-content input,
+    .modal-content select,
+    .modal-content textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      background: #3c3c3c;
+      border: 1px solid #3e3e42;
+      color: #cccccc;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: monospace;
+    }
+
+    .modal-content textarea {
+      font-family: monospace;
+      resize: vertical;
+      height: 300px;
+    }
+
+    .modal-content input::placeholder,
+    .modal-content select::placeholder {
+      color: #858585;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .modal-buttons button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    .btn-cancel {
+      background: #3e3e42;
+      color: #cccccc;
+    }
+
+    .btn-cancel:hover {
+      background: #4e4e52;
+    }
+
+    .btn-create {
+      background: #007acc;
+      color: white;
+    }
+
+    .btn-create:hover {
+      background: #005a9e;
+    }
+
+    .status-bar {
+      padding: 4px 12px;
+      background: #1e1e1e;
+      border-top: 1px solid #3e3e42;
+      font-size: 12px;
+      color: #858585;
+      flex-shrink: 0;
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #464646;
+      border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #5a5a5a;
+    }
+  </style>
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-section">
+        <div class="toolbar-title">⚛️ React Interview Sandbox</div>
+        <div class="toolbar-subtitle" id="activeComponentPath">Активный компонент: —</div>
+      </div>
+      <div style="margin-left: auto;">
+        <button class="toolbar-btn" id="importBtn" title="Импортировать задания">📥 Импорт заданий</button>
+        <button class="toolbar-btn" id="exportBtn" title="Экспортировать проект">📦 Экспорт</button>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div id="main-content">
+      <!-- Левая панель (файлы) -->
+      <div class="panel left-panel" id="leftPanel">
+        <div class="panel-header">
+          <span class="panel-title">EXPLORER</span>
+          <button class="expand-btn" id="leftExpandBtn" title="Развернуть на 50%">⤴️</button>
+          <button class="collapse-btn" id="leftCollapseBtn" title="Свернуть панель">◀</button>
+        </div>
+        <div class="panel-content">
+          <div id="file-tree"></div>
+          <div class="toolbar-actions" style="padding: 8px; gap: 4px;">
+            <button class="toolbar-btn" id="addFileBtn" style="flex: 1; padding: 8px;" title="Добавить файл">➕ Файл</button>
+            <button class="toolbar-btn" id="addFolderBtn" style="flex: 1; padding: 8px;" title="Добавить папку">📁 Папка</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Центральный редактор -->
+      <div id="editor-container"></div>
+
+      <!-- Правая панель (превью) -->
+      <div class="panel right-panel" id="rightPanel">
+        <div class="panel-header">
+          <span class="panel-title">PREVIEW</span>
+          <button class="expand-btn" id="rightExpandBtn" title="Развернуть на 50%">⤴️</button>
+          <button class="collapse-btn" id="rightCollapseBtn" title="Свернуть панель">▶</button>
+        </div>
+        <div class="panel-content">
+          <iframe id="preview"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar" id="statusBar">
+      Готово к работе
+    </div>
+  </div>
+
+  <!-- Модальное окно импорта заданий -->
+  <div id="importModal" class="modal">
+    <div class="modal-content">
+      <h3>📥 Импортировать задания из JSON</h3>
+      <p style="color: #cccccc; margin-bottom: 15px;">
+        Вставьте JSON объект с заданиями. Структура:
+        <code style="display: block; background: #1e1e1e; padding: 10px; margin-top: 5px; border-radius: 4px;">
+{"{"}
+  "task_01": {"{"}
+    "taskName": "Task 1: Custom Hook",
+    "Test": "export function Test() {...}",
+    "Answer": "export function Answer() {...}"
+  {"}"}
+{"}"}
+        </code>
+      </p>
+      <textarea id="importJsonInput" placeholder='Вставьте JSON с заданиями...'></textarea>
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeImportModal()">Отмена</button>
+        <button class="btn-create" onclick="importTasks()">Импортировать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно добавления файла -->
+  <div id="addFileModal" class="modal">
+    <div class="modal-content">
+      <h3>Добавить новый файл</h3>
+      <input type="text" id="fileName" placeholder="Например: Card.tsx">
+      <label style="color: #cccccc; font-size: 12px; margin-bottom: 5px; display: block;">Папка:</label>
+      <select id="fileFolder" style="margin-bottom: 15px;">
+        <option value="">Корень</option>
+      </select>
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeAddFileModal()">Отмена</button>
+        <button class="btn-create" onclick="createFile()">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно добавления папки -->
+  <div id="addFolderModal" class="modal">
+    <div class="modal-content">
+      <h3>Добавить новую папку</h3>
+      <input type="text" id="folderName" placeholder="Например: components">
+      <label style="color: #cccccc; font-size: 12px; margin-bottom: 5px; display: block;">Родительская папка:</label>
+      <select id="parentFolder" style="margin-bottom: 15px;">
+        <option value="">Корень</option>
+      </select>
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeAddFolderModal()">Отмена</button>
+        <button class="btn-create" onclick="createFolder()">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно редактирования файла -->
+  <div id="editFileModal" class="modal">
+    <div class="modal-content">
+      <h3>Переименовать файл</h3>
+      <input type="text" id="editFileName" placeholder="Новое имя">
+      <label style="color: #cccccc; font-size: 12px; margin-bottom: 5px; display: block;">Папка:</label>
+      <select id="editFileFolder" style="margin-bottom: 15px;">
+        <option value="">Корень</option>
+      </select>
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeEditFileModal()">Отмена</button>
+        <button class="btn-create" onclick="saveFileEdit()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно редактирования папки -->
+  <div id="editFolderModal" class="modal">
+    <div class="modal-content">
+      <h3>Переименовать папку</h3>
+      <input type="text" id="editFolderName" placeholder="Новое имя">
+      <label style="color: #cccccc; font-size: 12px; margin-bottom: 5px; display: block;">Родительская папка:</label>
+      <select id="editFolderParent" style="margin-bottom: 15px;">
+        <option value="">Корень</option>
+      </select>
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeEditFolderModal()">Отмена</button>
+        <button class="btn-create" onclick="saveFolderEdit()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно экспорта -->
+  <div id="exportModal" class="modal">
+    <div class="modal-content">
+      <h3>📦 Экспортировать проект</h3>
+      <p style="margin-bottom: 15px; color: #cccccc; font-size: 13px;">
+        Будут загружены 2 файла:
+      </p>
+      <div style="background: #1e1e1e; padding: 15px; border-radius: 4px; margin-bottom: 15px; font-size: 12px;">
+        <p style="margin-bottom: 10px;"><strong>1. restore-ДАТА.js</strong></p>
+        <p style="color: #cccccc; margin-bottom: 15px;">Скопируй в консоль для восстановления всего состояния (файлы + папки)</p>
+        
+        <p style="margin-bottom: 10px;"><strong>2. tasks-import-ДАТА.json</strong></p>
+        <p style="color: #cccccc;">Скопируй содержимое в диалог "Импорт заданий" для импорта только заданий</p>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeExportModal()">Отмена</button>
+        <button class="btn-create" onclick="exportProject()">Экспортировать</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    require.config({ paths: { vs: "https://unpkg.com/monaco-editor@0.45.0/min/vs" } });
+
+    require(["vs/editor/editor.main"], async function () {
+      // ============ DEFAULT STATE ============
+      const defaultFiles = {
+        "Test.tsx": `import React from "react";
+
+export function Test() {
+  return <div style={{ padding: "20px", fontSize: "16px" }}>👋 Привет! Отредактируй этот файл</div>;
+}`,
+        "App.tsx": `import React from "react";
+import { Test } from "./Test";
+
+export function App() {
+  return (
+    <div>
+      <h1 style={{ backgroundColor: "#007acc", color: "white", margin: 0, padding: "20px" }}>
+        React Interview Sandbox
+      </h1>
+      <Test />
+    </div>
+  );
+}`,
+        "index.tsx": `import React from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./App";
+
+createRoot(document.getElementById("root")!).render(<App />);`,
+      };
+
+      // ============ СОСТОЯНИЕ ПРИЛОЖЕНИЯ ============
+      const savedFiles = localStorage.getItem("files");
+      const savedFolders = localStorage.getItem("folders");
+      const savedActiveComponent = localStorage.getItem("activeComponent");
+      const savedTaskMetadata = localStorage.getItem("taskMetadata");
+
+      let files = {};
+      if (savedFiles) {
+        files = JSON.parse(savedFiles);
+        if (!files["index.tsx"] || !files["App.tsx"]) {
+          files = defaultFiles;
+        }
+      } else {
+        files = defaultFiles;
+      }
+
+      const state = {
+        leftCollapsed: localStorage.getItem("leftCollapsed") === "true",
+        rightCollapsed: localStorage.getItem("rightCollapsed") === "true",
+        leftExpanded: localStorage.getItem("leftExpanded") === "true",
+        rightExpanded: localStorage.getItem("rightExpanded") === "true",
+        files: files,
+        folders: savedFolders ? JSON.parse(savedFolders) : [],
+        activeComponent: savedActiveComponent || "Test.tsx",
+        taskMetadata: savedTaskMetadata ? JSON.parse(savedTaskMetadata) : {},
+      };
+
+      let editingFile = null;
+      let editingFolder = null;
+
+      function saveState() {
+        localStorage.setItem("files", JSON.stringify(state.files));
+        localStorage.setItem("folders", JSON.stringify(state.folders));
+        localStorage.setItem("activeComponent", state.activeComponent);
+        localStorage.setItem("taskMetadata", JSON.stringify(state.taskMetadata));
+      }
+
+      function updateActiveComponentDisplay() {
+        const pathDisplay = document.getElementById("activeComponentPath");
+        if (state.activeComponent && state.files[state.activeComponent]) {
+          const taskName = state.taskMetadata[state.activeComponent] || "";
+          const displayText = taskName 
+            ? `Активный компонент: ${state.activeComponent} (${taskName})`
+            : `Активный компонент: ${state.activeComponent}`;
+          pathDisplay.textContent = displayText;
+        } else {
+          pathDisplay.textContent = "Активный компонент: —";
+        }
+      }
+
+      // ============ ФУНКЦИЯ ИМПОРТА ЗАДАНИЙ ============
+      window.importTasks = async function () {
+        try {
+          const jsonText = document.getElementById("importJsonInput").value.trim();
+          if (!jsonText) {
+            alert("Вставьте JSON с заданиями");
+            return;
+          }
+
+          const tasksData = JSON.parse(jsonText);
+          const taskKeys = Object.keys(tasksData).sort();
+
+          let createdCount = 0;
+
+          for (const taskKey of taskKeys) {
+            const task = tasksData[taskKey];
+            if (!task.taskName || !task.Test || !task.Answer) {
+              console.warn(`Пропуск ${taskKey}: отсутствуют обязательные поля`);
+              continue;
+            }
+
+            // Создаем папку задания
+            const taskFolder = `tasks/${taskKey}`;
+            if (!state.folders.includes(taskFolder)) {
+              state.folders.push(taskFolder);
+            }
+
+            // Создаем Test.tsx
+            const testFilePath = `${taskFolder}/Test.tsx`;
+            let testContent = task.Test.trim();
+            if (!testContent.startsWith("import")) {
+              testContent = `import React from "react";\n\n${testContent}`;
+            }
+            state.files[testFilePath] = testContent;
+            const testUri = monaco.Uri.parse(`file:///${testFilePath}`);
+            models[testFilePath] = monaco.editor.createModel(state.files[testFilePath], "typescript", testUri);
+
+            // Создаем Answer.tsx
+            const answerFilePath = `${taskFolder}/Answer.tsx`;
+            let answerContent = task.Answer.trim();
+            if (!answerContent.startsWith("import")) {
+              answerContent = `import React from "react";\n\n${answerContent}`;
+            }
+            state.files[answerFilePath] = answerContent;
+            const answerUri = monaco.Uri.parse(`file:///${answerFilePath}`);
+            models[answerFilePath] = monaco.editor.createModel(state.files[answerFilePath], "typescript", answerUri);
+
+            // Сохраняем метаданные
+            state.taskMetadata[testFilePath] = task.taskName;
+            state.taskMetadata[answerFilePath] = task.taskName;
+
+            createdCount++;
+          }
+
+          if (createdCount > 0) {
+            saveState();
+            refreshTree();
+            updateMonacoFileReferences();
+            alert(`✓ Импортировано ${createdCount} заданий!\n\nСтруктура:\ntasks/\n  ├── task_01/\n  │   ├── Test.tsx\n  │   └── Answer.tsx\n  └── ...`);
+            window.closeImportModal();
+          } else {
+            alert("Не удалось импортировать задания. Проверьте структуру JSON.");
+          }
+        } catch (error) {
+          alert(`Ошибка при импорте: ${error.message}`);
+          console.error(error);
+        }
+      };
+
+      window.closeImportModal = function () {
+        document.getElementById("importModal").classList.remove("active");
+        document.getElementById("importJsonInput").value = "";
+      };
+
+      // ============ ПАНЕЛИ ============
+      const leftPanel = document.getElementById("leftPanel");
+      const rightPanel = document.getElementById("rightPanel");
+      const leftCollapseBtn = document.getElementById("leftCollapseBtn");
+      const rightCollapseBtn = document.getElementById("rightCollapseBtn");
+      const leftExpandBtn = document.getElementById("leftExpandBtn");
+      const rightExpandBtn = document.getElementById("rightExpandBtn");
+
+      if (state.leftCollapsed) {
+        leftPanel.classList.add("collapsed");
+        leftCollapseBtn.textContent = "▶";
+      }
+      if (state.rightCollapsed) {
+        rightPanel.classList.add("collapsed");
+        rightCollapseBtn.textContent = "◀";
+      }
+      if (state.leftExpanded) {
+        leftPanel.classList.add("expanded");
+      }
+      if (state.rightExpanded) {
+        rightPanel.classList.add("expanded");
+      }
+
+      leftCollapseBtn.addEventListener("click", () => {
+        state.leftCollapsed = !state.leftCollapsed;
+        leftPanel.classList.toggle("collapsed");
+        leftPanel.classList.remove("expanded");
+        state.leftExpanded = false;
+        leftCollapseBtn.textContent = state.leftCollapsed ? "▶" : "◀";
+        localStorage.setItem("leftCollapsed", state.leftCollapsed);
+        localStorage.setItem("leftExpanded", false);
+        setTimeout(() => editor.layout(), 300);
+      });
+
+      rightCollapseBtn.addEventListener("click", () => {
+        state.rightCollapsed = !state.rightCollapsed;
+        rightPanel.classList.toggle("collapsed");
+        rightPanel.classList.remove("expanded");
+        state.rightExpanded = false;
+        rightCollapseBtn.textContent = state.rightCollapsed ? "◀" : "▶";
+        localStorage.setItem("rightCollapsed", state.rightCollapsed);
+        localStorage.setItem("rightExpanded", false);
+        setTimeout(() => editor.layout(), 300);
+      });
+
+      leftExpandBtn.addEventListener("click", () => {
+        state.leftExpanded = !state.leftExpanded;
+        leftPanel.classList.toggle("expanded");
+        leftPanel.classList.remove("collapsed");
+        state.leftCollapsed = false;
+        leftCollapseBtn.textContent = "◀";
+        localStorage.setItem("leftExpanded", state.leftExpanded);
+        localStorage.setItem("leftCollapsed", false);
+        setTimeout(() => editor.layout(), 300);
+      });
+
+      rightExpandBtn.addEventListener("click", () => {
+        state.rightExpanded = !state.rightExpanded;
+        rightPanel.classList.toggle("expanded");
+        rightPanel.classList.remove("collapsed");
+        state.rightCollapsed = false;
+        rightCollapseBtn.textContent = "▶";
+        localStorage.setItem("rightExpanded", state.rightExpanded);
+        localStorage.setItem("rightCollapsed", false);
+        setTimeout(() => editor.layout(), 300);
+      });
+
+      document.getElementById("importBtn").addEventListener("click", () => {
+        document.getElementById("importModal").classList.add("active");
+      });
+
+      // ============ MONACO EDITOR ============
+      const tsDefaults = monaco.languages.typescript.typescriptDefaults;
+
+      tsDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ESNext,
+        module: monaco.languages.typescript.ModuleKind.ESNext,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        jsx: monaco.languages.typescript.JsxEmit.React,
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
+        strict: false,
+      });
+
+      async function addType(url, path) {
+        try {
+          const res = await fetch(url);
+          const text = await res.text();
+          tsDefaults.addExtraLib(text, path);
+        } catch (err) {
+          console.error(`Ошибка загрузки типов ${path}:`, err);
+        }
+      }
+
+      await addType(
+        "https://unpkg.com/@types/react@18/index.d.ts",
+        "file:///node_modules/@types/react/index.d.ts"
+      );
+
+      await addType(
+        "https://unpkg.com/@types/react-dom@18/index.d.ts",
+        "file:///node_modules/@types/react-dom/index.d.ts"
+      );
+
+      tsDefaults.addExtraLib(
+        `
+declare module "react" {
+  export = React;
+}
+declare module "react-dom/client" {
+  export const createRoot: typeof ReactDOM.createRoot;
+}
+        `,
+        "file:///node_modules/custom-global.d.ts"
+      );
+
+      const models = {};
+      Object.keys(state.files).forEach(name => {
+        const uri = monaco.Uri.parse("file:///" + name);
+        models[name] = monaco.editor.createModel(state.files[name], "typescript", uri);
+      });
+
+      function updateMonacoFileReferences() {
+        Object.keys(state.files).forEach(filePath => {
+          const uri = `file:///${filePath}`;
+          tsDefaults.addExtraLib(`export * from "${uri}";`, uri);
+        });
+      }
+
+      updateMonacoFileReferences();
+
+      const editor = monaco.editor.create(
+        document.getElementById("editor-container"),
+        {
+          model: models["Test.tsx"],
+          theme: "vs-dark",
+          automaticLayout: true,
+          minimap: { enabled: false },
+          fontSize: 14,
+          fontFamily: "Menlo, Monaco, 'Courier New', monospace",
+        }
+      );
+
+      let activeFile = "Test.tsx";
+
+      // ============ UTILITY FUNCTIONS ============
+      function getAllFolders() {
+        const folders = new Set(state.folders);
+        folders.add("");
+        Object.keys(state.files).forEach(path => {
+          const parts = path.split("/");
+          for (let i = 1; i < parts.length; i++) {
+            folders.add(parts.slice(0, i).join("/"));
+          }
+        });
+        return Array.from(folders).sort();
+      }
+
+      function updateFolderSelects() {
+        const folders = getAllFolders();
+        
+        const fileFolder = document.getElementById("fileFolder");
+        const parentFolder = document.getElementById("parentFolder");
+        const editFileFolder = document.getElementById("editFileFolder");
+        const editFolderParent = document.getElementById("editFolderParent");
+
+        [fileFolder, parentFolder, editFileFolder, editFolderParent].forEach(select => {
+          const current = select?.value || "";
+          if (select) {
+            select.innerHTML = '<option value="">Корень</option>' +
+              folders.filter(f => f !== "").map(f => `<option value="${f}">${f}</option>`).join("");
+            select.value = current;
+          }
+        });
+      }
+
+      function getFileName(path) {
+        return path.split("/").pop();
+      }
+
+      function getFileFolder(path) {
+        const parts = path.split("/");
+        if (parts.length === 1) return "";
+        return parts.slice(0, -1).join("/");
+      }
+
+      function getComponentName(filePath) {
+        const fileName = getFileName(filePath);
+        return fileName.replace(/\.(tsx?|jsx?)$/, "");
+      }
+
+      function getRelativeImportPath(fromFile, toFile) {
+        const fromParts = fromFile.split("/");
+        const toParts = toFile.split("/");
+        
+        fromParts.pop();
+        
+        let commonIndex = 0;
+        for (let i = 0; i < Math.min(fromParts.length, toParts.length); i++) {
+          if (fromParts[i] === toParts[i]) {
+            commonIndex = i + 1;
+          } else {
+            break;
+          }
+        }
+
+        const upDirs = fromParts.length - commonIndex;
+        const downParts = toParts.slice(commonIndex);
+        
+        let path = "./";
+        for (let i = 0; i < upDirs; i++) {
+          path += "../";
+        }
+        path += downParts.join("/");
+        
+        return path;
+      }
+
+      function setActiveComponent(filePath) {
+        if (!state.files[filePath] || filePath === "App.tsx" || filePath === "index.tsx") {
+          return;
+        }
+
+        state.activeComponent = filePath;
+        
+        const componentName = getComponentName(filePath);
+        const importPath = getRelativeImportPath("App.tsx", filePath).replace(/\.(tsx?|jsx?)$/, "");
+        
+        let appContent = state.files["App.tsx"];
+        
+        appContent = appContent.replace(
+          /import\s*{\s*\w+\s*}\s*from\s*["'][^"']+["']/,
+          `import { ${componentName} } from "${importPath}"`
+        );
+        
+        appContent = appContent.replace(
+          /<\w+\s*\/>/,
+          `<${componentName} />`
+        );
+
+        state.files["App.tsx"] = appContent;
+        
+        if (models["App.tsx"]) {
+          models["App.tsx"].setValue(appContent);
+        }
+
+        saveState();
+        updateActiveComponentDisplay();
+        refreshTree();
+        build();
+      }
+
+      function updateImportsAfterMove(oldPath, newPath) {
+        const fileName = getFileName(oldPath);
+        const fileNameWithoutExt = fileName.replace(/\.(tsx?|jsx?)$/, "");
+
+        Object.keys(state.files).forEach(filePath => {
+          let content = state.files[filePath];
+          const oldImportPath = getRelativeImportPath(filePath, oldPath).replace(/\.(tsx?|jsx?)$/, "");
+          const newImportPath = getRelativeImportPath(filePath, newPath).replace(/\.(tsx?|jsx?)$/, "");
+
+          const importRegex = new RegExp(
+            `(import\\s+.*?from\\s+)['\"]${oldImportPath.replace(/\./g, '\\.')}['\"]`,
+            "g"
+          );
+          
+          if (importRegex.test(content)) {
+            content = content.replace(importRegex, `$1"${newImportPath}"`);
+            state.files[filePath] = content;
+            
+            if (models[filePath]) {
+              models[filePath].setValue(content);
+            }
+          }
+        });
+
+        if (state.activeComponent === oldPath) {
+          state.activeComponent = newPath;
+          setActiveComponent(newPath);
+        }
+      }
+
+      // ============ TREE VIEW ============
+      const fileTree = document.getElementById("file-tree");
+
+      function buildFolderStructure(files) {
+        const structure = { children: {} };
+
+        Object.keys(files).forEach(path => {
+          const parts = path.split("/");
+          let current = structure;
+
+          parts.forEach((part, i) => {
+            if (!current.children[part]) {
+              current.children[part] = {
+                name: part,
+                path: parts.slice(0, i + 1).join("/"),
+                isFolder: i < parts.length - 1,
+                children: {},
+              };
+            }
+            current = current.children[part];
+          });
+        });
+
+        state.folders.forEach(folderPath => {
+          const parts = folderPath.split("/");
+          let current = structure;
+
+          parts.forEach((part, i) => {
+            if (!current.children[part]) {
+              current.children[part] = {
+                name: part,
+                path: parts.slice(0, i + 1).join("/"),
+                isFolder: true,
+                children: {},
+              };
+            }
+            current = current.children[part];
+          });
+        });
+
+        return structure;
+      }
+
+      function renderTree(node, parent = fileTree, depth = 0) {
+        const children = Object.values(node.children || {}).sort((a, b) => {
+          if (a.isFolder !== b.isFolder) {
+            return a.isFolder ? -1 : 1;
+          }
+          return a.name.localeCompare(b.name);
+        });
+
+        children.forEach(child => {
+          const nodeEl = document.createElement("div");
+          nodeEl.className = "tree-node";
+          nodeEl.style.paddingLeft = (12 + depth * 16) + "px";
+
+          // Добавляем тултип с полным именем
+          const taskName = state.taskMetadata[child.path];
+          const tooltipText = taskName ? `${child.path} (${taskName})` : child.path;
+          nodeEl.title = tooltipText;
+
+          let toggleEl = null;
+          let childrenContainer = null;
+
+          if (child.isFolder) {
+            toggleEl = document.createElement("div");
+            toggleEl.className = "tree-toggle expanded";
+            nodeEl.appendChild(toggleEl);
+          } else {
+            const noToggle = document.createElement("div");
+            noToggle.className = "tree-toggle no-children";
+            nodeEl.appendChild(noToggle);
+          }
+
+          const icon = document.createElement("div");
+          icon.className = "tree-icon";
+          icon.textContent = child.isFolder ? "📁" : "📄";
+          nodeEl.appendChild(icon);
+
+          const label = document.createElement("div");
+          label.className = "tree-label";
+          
+          // Добавляем taskName если есть
+          const displayName = taskName ? `${child.name} (${taskName})` : child.name;
+          label.textContent = displayName;
+          
+          nodeEl.appendChild(label);
+
+          if (activeFile === child.path) {
+            nodeEl.classList.add("active");
+          }
+
+          const actions = document.createElement("div");
+          actions.className = "node-actions";
+
+          if (child.isFolder) {
+            const editBtn = document.createElement("button");
+            editBtn.className = "node-action-btn edit";
+            editBtn.textContent = "✎";
+            editBtn.title = "Переименовать папку";
+            editBtn.onclick = (e) => {
+              e.stopPropagation();
+              openEditFolderModal(child.path);
+            };
+            actions.appendChild(editBtn);
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "node-action-btn";
+            deleteBtn.textContent = "✕";
+            deleteBtn.title = "Удалить папку";
+            deleteBtn.onclick = (e) => {
+              e.stopPropagation();
+              deleteFolder(child.path);
+            };
+            actions.appendChild(deleteBtn);
+          } else {
+            if (child.path !== "App.tsx" && child.path !== "index.tsx") {
+              const activateBtn = document.createElement("button");
+              activateBtn.className = "node-action-btn activate";
+              activateBtn.textContent = "⭐";
+              activateBtn.title = "Использовать как активный компонент";
+              activateBtn.onclick = (e) => {
+                e.stopPropagation();
+                setActiveComponent(child.path);
+              };
+              actions.appendChild(activateBtn);
+
+              if (state.activeComponent === child.path) {
+                activateBtn.textContent = "✨";
+                activateBtn.title = "Это активный компонент";
+              }
+            }
+
+            const editBtn = document.createElement("button");
+            editBtn.className = "node-action-btn edit";
+            editBtn.textContent = "✎";
+            editBtn.title = "Переименовать файл";
+            editBtn.onclick = (e) => {
+              e.stopPropagation();
+              openEditFileModal(child.path);
+            };
+            actions.appendChild(editBtn);
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "node-action-btn";
+            deleteBtn.textContent = "✕";
+            deleteBtn.title = "Удалить файл";
+            deleteBtn.onclick = (e) => {
+              e.stopPropagation();
+              deleteFile(child.path);
+            };
+            actions.appendChild(deleteBtn);
+          }
+
+          nodeEl.appendChild(actions);
+
+          if (!child.isFolder) {
+            nodeEl.addEventListener("click", (e) => {
+              selectFile(child.path);
+            });
+          }
+
+          parent.appendChild(nodeEl);
+
+          if (child.isFolder) {
+            childrenContainer = document.createElement("div");
+            childrenContainer.className = "tree-children expanded";
+            parent.appendChild(childrenContainer);
+            renderTree(child, childrenContainer, depth + 1);
+
+            if (toggleEl) {
+              toggleEl.addEventListener("click", (e) => {
+                e.stopPropagation();
+                toggleEl.classList.toggle("expanded");
+                toggleEl.classList.toggle("collapsed");
+                childrenContainer.classList.toggle("expanded");
+              });
+            }
+
+            icon.addEventListener("click", (e) => {
+              e.stopPropagation();
+              if (toggleEl) {
+                toggleEl.classList.toggle("expanded");
+                toggleEl.classList.toggle("collapsed");
+                childrenContainer.classList.toggle("expanded");
+              }
+            });
+          }
+        });
+      }
+
+      function refreshTree() {
+        fileTree.innerHTML = "";
+        const structure = buildFolderStructure(state.files);
+        renderTree(structure);
+        updateFolderSelects();
+      }
+
+      function selectFile(path) {
+        if (!state.files[path]) return;
+
+        document.querySelectorAll(".tree-node").forEach(el => el.classList.remove("active"));
+        
+        // Ищем элемент по полному пути в title
+        const selectedNode = Array.from(fileTree.querySelectorAll(".tree-node")).find(
+          el => el.title === path || el.title.startsWith(path + " (")
+        );
+        
+        if (selectedNode) {
+          selectedNode.classList.add("active");
+        }
+
+        activeFile = path;
+        if (!models[path]) {
+          const uri = monaco.Uri.parse("file:///" + path);
+          models[path] = monaco.editor.createModel(state.files[path], "typescript", uri);
+        }
+        editor.setModel(models[path]);
+      }
+
+      // ============ УПРАВЛЕНИЕ ФАЙЛАМИ ============
+      function deleteFile(path) {
+        if (!confirm(`Удалить файл "${getFileName(path)}"?`)) return;
+        delete state.files[path];
+        delete models[path];
+        delete state.taskMetadata[path];
+
+        if (state.activeComponent === path) {
+          state.activeComponent = "Test.tsx";
+          if (state.files["Test.tsx"]) {
+            setActiveComponent("Test.tsx");
+          }
+        }
+
+        saveState();
+        if (activeFile === path) {
+          activeFile = Object.keys(state.files)[0] || null;
+          if (activeFile && models[activeFile]) {
+            editor.setModel(models[activeFile]);
+          }
+        }
+        refreshTree();
+        updateMonacoFileReferences();
+        build();
+      }
+
+      function deleteFolder(path) {
+        const filesInFolder = Object.keys(state.files).filter(f => f.startsWith(path + "/"));
+        
+        if (filesInFolder.length > 0) {
+          if (!confirm(`Удалить папку "${getFileName(path)}" с ${filesInFolder.length} файлами?`)) return;
+          
+          filesInFolder.forEach(f => {
+            delete state.files[f];
+            delete models[f];
+            delete state.taskMetadata[f];
+          });
+        }
+
+        const folderIndex = state.folders.indexOf(path);
+        if (folderIndex > -1) {
+          state.folders.splice(folderIndex, 1);
+        }
+        
+        state.folders = state.folders.filter(f => !f.startsWith(path + "/"));
+        
+        saveState();
+        if (activeFile && filesInFolder.includes(activeFile)) {
+          activeFile = Object.keys(state.files)[0] || null;
+          if (activeFile && models[activeFile]) {
+            editor.setModel(models[activeFile]);
+          }
+        }
+        refreshTree();
+        updateMonacoFileReferences();
+        build();
+      }
+
+      function openEditFileModal(path) {
+        editingFile = path;
+        document.getElementById("editFileName").value = getFileName(path);
+        document.getElementById("editFileFolder").value = getFileFolder(path);
+        document.getElementById("editFileModal").classList.add("active");
+        document.getElementById("editFileName").focus();
+      }
+
+      window.closeEditFileModal = function () {
+        document.getElementById("editFileModal").classList.remove("active");
+      };
+
+      window.saveFileEdit = function () {
+        const newName = document.getElementById("editFileName").value.trim();
+        const newFolder = document.getElementById("editFileFolder").value;
+
+        if (!newName) {
+          alert("Введите имя файла");
+          return;
+        }
+
+        const newPath = newFolder ? `${newFolder}/${newName}` : newName;
+        if (newPath !== editingFile && state.files[newPath]) {
+          alert(`Файл "${newPath}" уже существует`);
+          return;
+        }
+
+        const content = state.files[editingFile];
+        const taskName = state.taskMetadata[editingFile];
+        
+        delete state.files[editingFile];
+        delete state.taskMetadata[editingFile];
+        
+        if (models[editingFile]) {
+          models[newPath] = models[editingFile];
+          delete models[editingFile];
+        }
+
+        state.files[newPath] = content;
+        if (taskName) {
+          state.taskMetadata[newPath] = taskName;
+        }
+        
+        updateImportsAfterMove(editingFile, newPath);
+        
+        saveState();
+        
+        if (activeFile === editingFile) {
+          activeFile = newPath;
+          editor.setModel(models[newPath]);
+        }
+
+        refreshTree();
+        updateMonacoFileReferences();
+        updateActiveComponentDisplay();
+        window.closeEditFileModal();
+        build();
+      };
+
+      function openEditFolderModal(path) {
+        editingFolder = path;
+        document.getElementById("editFolderName").value = getFileName(path);
+        document.getElementById("editFolderParent").value = getFileFolder(path);
+        document.getElementById("editFolderModal").classList.add("active");
+        document.getElementById("editFolderName").focus();
+      }
+
+      window.closeEditFolderModal = function () {
+        document.getElementById("editFolderModal").classList.remove("active");
+      };
+
+      window.saveFolderEdit = function () {
+        const newName = document.getElementById("editFolderName").value.trim();
+        const newParentFolder = document.getElementById("editFolderParent").value;
+
+        if (!newName) {
+          alert("Введите имя папки");
+          return;
+        }
+
+        const newPath = newParentFolder ? `${newParentFolder}/${newName}` : newName;
+
+        if (newPath === editingFolder) {
+          window.closeEditFolderModal();
+          return;
+        }
+
+        const updatedFiles = {};
+        const updatedMetadata = {};
+        
+        Object.keys(state.files).forEach(path => {
+          if (path.startsWith(editingFolder + "/")) {
+            const newFilePath = path.replace(editingFolder + "/", newPath + "/");
+            updatedFiles[newFilePath] = state.files[path];
+            if (state.taskMetadata[path]) {
+              updatedMetadata[newFilePath] = state.taskMetadata[path];
+            }
+            if (models[path]) {
+              models[newFilePath] = models[path];
+              delete models[path];
+            }
+          } else {
+            updatedFiles[path] = state.files[path];
+          }
+        });
+
+        const folderIndex = state.folders.indexOf(editingFolder);
+        if (folderIndex > -1) {
+          state.folders[folderIndex] = newPath;
+        }
+
+        state.folders = state.folders.map(f => {
+          if (f.startsWith(editingFolder + "/")) {
+            return f.replace(editingFolder + "/", newPath + "/");
+          }
+          return f;
+        });
+
+        Object.keys(state.files).forEach(key => {
+          if (key.startsWith(editingFolder + "/")) {
+            delete state.files[key];
+            delete state.taskMetadata[key];
+          }
+        });
+        
+        Object.assign(state.files, updatedFiles);
+        Object.assign(state.taskMetadata, updatedMetadata);
+
+        Object.keys(updatedFiles).forEach(newFilePath => {
+          const oldFilePath = newFilePath.replace(newPath + "/", editingFolder + "/");
+          if (state.files[newFilePath]) {
+            updateImportsAfterMove(oldFilePath, newFilePath);
+          }
+        });
+
+        saveState();
+        refreshTree();
+        updateMonacoFileReferences();
+        updateActiveComponentDisplay();
+        window.closeEditFolderModal();
+        build();
+      };
+
+      function openAddFileModal() {
+        document.getElementById("addFileModal").classList.add("active");
+        document.getElementById("fileName").focus();
+        document.getElementById("fileName").value = "";
+        updateFolderSelects();
+      }
+
+      window.closeAddFileModal = function () {
+        document.getElementById("addFileModal").classList.remove("active");
+      };
+
+      window.createFile = function () {
+        const fileName = document.getElementById("fileName").value.trim();
+        const folder = document.getElementById("fileFolder").value;
+        const path = folder ? `${folder}/${fileName}` : fileName;
+
+        if (!fileName) {
+          alert("Введите имя файла");
+          return;
+        }
+
+        if (state.files[path]) {
+          alert(`Файл "${path}" уже существует`);
+          return;
+        }
+
+        let content = "";
+        if (fileName.endsWith(".tsx")) {
+          content = `import React from "react";\n\nexport function ${fileName.slice(0, -4)}() {\n  return <div>Hello</div>;\n}`;
+        } else if (fileName.endsWith(".ts")) {
+          content = `// ${fileName}\n\nexport function myFunction() {\n  return "Hello";\n}`;
+        } else {
+          content = `// ${fileName}\n`;
+        }
+
+        state.files[path] = content;
+        const uri = monaco.Uri.parse("file:///" + path);
+        models[path] = monaco.editor.createModel(content, "typescript", uri);
+
+        saveState();
+        refreshTree();
+        selectFile(path);
+        updateMonacoFileReferences();
+        window.closeAddFileModal();
+        build();
+      };
+
+      function openAddFolderModal() {
+        document.getElementById("addFolderModal").classList.add("active");
+        document.getElementById("folderName").focus();
+        document.getElementById("folderName").value = "";
+        updateFolderSelects();
+      }
+
+      window.closeAddFolderModal = function () {
+        document.getElementById("addFolderModal").classList.remove("active");
+      };
+
+      window.createFolder = function () {
+        const folderName = document.getElementById("folderName").value.trim();
+        const parentFolder = document.getElementById("parentFolder").value;
+
+        if (!folderName) {
+          alert("Введите имя папки");
+          return;
+        }
+
+        const newFolder = parentFolder ? `${parentFolder}/${folderName}` : folderName;
+
+        if (state.folders.includes(newFolder)) {
+          alert(`Папка "${newFolder}" уже существует`);
+          return;
+        }
+
+        state.folders.push(newFolder);
+        saveState();
+        refreshTree();
+        updateMonacoFileReferences();
+        window.closeAddFolderModal();
+      };
+
+      document.getElementById("addFileBtn").addEventListener("click", openAddFileModal);
+      document.getElementById("addFolderBtn").addEventListener("click", openAddFolderModal);
+
+      document.getElementById("fileName").addEventListener("keypress", function (e) {
+        if (e.key === "Enter") window.createFile();
+      });
+
+      document.getElementById("folderName").addEventListener("keypress", function (e) {
+        if (e.key === "Enter") window.createFolder();
+      });
+
+      document.getElementById("editFileName").addEventListener("keypress", function (e) {
+        if (e.key === "Enter") window.saveFileEdit();
+      });
+
+      document.getElementById("editFolderName").addEventListener("keypress", function (e) {
+        if (e.key === "Enter") window.saveFolderEdit();
+      });
+
+      [
+        document.getElementById("addFileModal"),
+        document.getElementById("addFolderModal"),
+        document.getElementById("editFileModal"),
+        document.getElementById("editFolderModal"),
+        document.getElementById("importModal"),
+        document.getElementById("exportModal")
+      ].forEach(modal => {
+        modal.addEventListener("click", function (e) {
+          if (e.target === this) {
+            this.classList.remove("active");
+          }
+        });
+      });
+
+      refreshTree();
+      updateActiveComponentDisplay();
+
+      Object.values(models).forEach((model) => {
+        model.onDidChangeContent(() => {
+          const filename = Object.keys(models).find(key => models[key] === model);
+          if (filename && state.files[filename]) {
+            state.files[filename] = model.getValue();
+            saveState();
+            build();
+          }
+        });
+      });
+
+      // ============ ЭКСПОРТ ============
+      document.getElementById("exportBtn").addEventListener("click", () => {
+        document.getElementById("exportModal").classList.add("active");
+      });
+
+      window.closeExportModal = function () {
+        document.getElementById("exportModal").classList.remove("active");
+      };
+
+      window.exportProject = async function () {
+        try {
+          const timestamp = new Date().toISOString().slice(0, 10);
+
+          // ===== ВАРИАНТ 1: Экспорт для восстановления всего состояния =====
+          const restoreScript = `
+// Скопируй этот скрипт в консоль браузера на странице с песочницей
+const files = ${JSON.stringify(state.files, null, 2)};
+const folders = ${JSON.stringify(state.folders, null, 2)};
+const taskMetadata = ${JSON.stringify(state.taskMetadata, null, 2)};
+
+localStorage.setItem("files", JSON.stringify(files));
+localStorage.setItem("folders", JSON.stringify(folders));
+localStorage.setItem("taskMetadata", JSON.stringify(taskMetadata));
+
+console.log("✓ Состояние восстановлено!");
+location.reload();
+`;
+
+          downloadFile(restoreScript, `restore-${timestamp}.js`, "text/javascript");
+
+          // ===== ВАРИАНТ 2: Экспорт заданий для импорта =====
+          const tasksForImport = {};
+          
+          const testFiles = Object.keys(state.files).filter(f => f.startsWith("tasks/") && f.endsWith("/Test.tsx"));
+
+          for (const testPath of testFiles) {
+            const folder = testPath.substring(0, testPath.lastIndexOf("/"));
+            const taskKey = folder.split("/")[1];
+            const answerPath = `${folder}/Answer.tsx`;
+
+            if (state.files[testPath] && state.files[answerPath]) {
+              const taskName = state.taskMetadata[testPath] || taskKey;
+              
+              let testCode = state.files[testPath];
+              let answerCode = state.files[answerPath];
+
+              testCode = testCode.replace(/^import\s+React\s+from\s+["']react["'];?\s*\n\n/, "");
+              answerCode = answerCode.replace(/^import\s+React\s+from\s+["']react["'];?\s*\n\n/, "");
+
+              tasksForImport[taskKey] = {
+                taskName: taskName,
+                Test: testCode,
+                Answer: answerCode
+              };
+            }
+          }
+
+          const importJson = JSON.stringify(tasksForImport, null, 2);
+          downloadFile(importJson, `tasks-import-${timestamp}.json`, "application/json");
+
+          window.closeExportModal();
+          
+          const tasksCount = Object.keys(tasksForImport).length;
+          alert(
+            `✓ Файлы загружены:\n\n` +
+            `1. restore-${timestamp}.js\n` +
+            `   → Скопируй в консоль для восстановления всего состояния\n\n` +
+            `2. tasks-import-${timestamp}.json\n` +
+            `   → Скопируй содержимое в диалог "Импорт заданий"\n` +
+            `   → Содержит ${tasksCount} задани${tasksCount % 10 === 1 && tasksCount % 100 !== 11 ? 'е' : tasksCount % 10 >= 2 && tasksCount % 10 <= 4 && (tasksCount % 100 < 10 || tasksCount % 100 >= 20) ? 'я' : 'й'}`
+          );
+        } catch (err) {
+          console.error("Export error:", err);
+          alert("Ошибка при экспорте: " + err.message);
+        }
+      };
+
+      function downloadFile(content, filename, type) {
+        const blob = new Blob([content], { type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      // ============ BUILD & COMPILE ============
+      function extractExports(code) {
+        const exports = {};
+
+        const funcMatches = code.matchAll(
+          /export\s+(function|const)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g
+        );
+        for (const match of funcMatches) {
+          exports[match[2]] = match[2];
+        }
+
+        const namedMatches = code.matchAll(/export\s*\{\s*([^}]+)\s*\}/g);
+        for (const match of namedMatches) {
+          match[1].split(",").forEach(name => {
+            exports[name.trim()] = name.trim();
+          });
+        }
+
+        return exports;
+      }
+
+        function transformCode(code, filename) {
+        const exports = extractExports(code);
+
+        let cleaned = code
+          .replace(/export\s+function\s+/g, "function ")
+          .replace(/export\s+const\s+/g, "const ")
+          .replace(/export\s+class\s+/g, "class ")
+          .replace(/export\s+type\s+/g, "type ")
+          .replace(/export\s+interface\s+/g, "interface ")
+          .replace(/export\s*\{[^}]*\}/g, "");
+
+        const result = Babel.transform(cleaned, {
+          filename: filename,
+          presets: ["typescript", ["react", { runtime: "automatic" }]],
+          plugins: [["transform-modules-commonjs", { allowTopLevelThis: true }]],
+          compact: false,
+          retainLines: true,
+        }).code;
+
+        let finalCode = result;
+        if (Object.keys(exports).length > 0) {
+          const exportLines = Object.keys(exports)
+            .map(name => `module.exports.${name} = ${name};`)
+            .join("\n");
+          finalCode = result + "\n" + exportLines;
+        }
+
+        return finalCode;
+      }
+
+      function build() {
+        try {
+          const compiled = {};
+          Object.keys(models).forEach(filename => {
+            const code = models[filename].getValue();
+            compiled[filename] = transformCode(code, filename);
+          });
+
+          const compiledMap = {};
+          Object.keys(compiled).forEach(filename => {
+            const moduleName = filename.replace(/\.(tsx?|js)$/, "");
+            compiledMap[moduleName] = JSON.stringify(compiled[filename]);
+          });
+
+          const moduleLoaders = Object.keys(compiledMap)
+            .map(
+              name =>
+                `if (normalized === '${name}') {
+          if (!cache['${name}']) {
+            const m = { exports: {} };
+            (function(exports, module, require) {
+              eval(${compiledMap[name]});
+            })(m.exports, m, require);
+            cache['${name}'] = m.exports;
+          }
+          return cache['${name}'];
+        }`
+            )
+            .join("\n\n      ");
+
+          const iframeDoc = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"><\/script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"><\/script>
+  <script>
+    const cache = {};
+    const exports = {};
+    const module = { exports };
+    
+    function require(id) {
+      if (id === 'react') return React;
+      if (id === 'react-dom/client') return { createRoot: ReactDOM.createRoot };
+      if (id === 'react/jsx-runtime') return {
+        jsx: React.createElement,
+        jsxs: React.createElement,
+        Fragment: React.Fragment
+      };
+      
+      let normalized = id;
+      if (id.startsWith('./')) normalized = id.slice(2).replace(/\\.(tsx?|js)$/, '');
+      
+      ${moduleLoaders}
+      
+      throw new Error('Unknown module: ' + id);
+    }
+    
+    try {
+      (function() {
+        eval(${compiledMap["index"]});
+      })();
+    } catch (e) {
+      document.getElementById('root').innerHTML = 
+        '<div style="color: red; padding: 20px; font-family: monospace; white-space: pre-wrap;">' +
+        '<h3>❌ Runtime Error</h3>' +
+        '<pre>' + (e.toString() + '\\n\\n' + e.stack).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])) + '</pre>' +
+        '</div>';
+    }
+  <\/script>
+</body>
+</html>`;
+
+          document.getElementById("preview").srcdoc = iframeDoc;
+        } catch (err) {
+          console.error("Build error:", err);
+          const errorMsg = (err.message || String(err)).replace(/[&<>"']/g, m => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#039;",
+          }[m]));
+
+          document.getElementById("preview").srcdoc = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { margin: 0; padding: 20px; font-family: monospace; background: #1e1e1e; }
+                pre { color: #f48771; background: #252526; padding: 15px; border-radius: 4px; }
+              </style>
+            </head>
+            <body>
+              <h3 style="color: #ce9178;">❌ Compilation Error</h3>
+              <pre>${errorMsg}</pre>
+            </body>
+            </html>
+          `;
+        }
+      }
+
+      build();
+    });
+  </script>
+</body>
+</html>
