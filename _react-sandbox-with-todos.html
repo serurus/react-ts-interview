@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>React 18 + TS Monaco Sandbox</title>
+  <style>
+    body { margin: 0; display: flex; height: 100vh; font-family: sans-serif; }
+    #container { display: flex; width: 100%; height: 100%; }
+    #files-panel { width: 220px; border-right: 1px solid #333; padding: 10px; background: #1e1e1e; color: white; overflow-y: auto; display: flex; flex-direction: column; }
+    #files { flex: 1; overflow-y: auto; }
+    #editor { flex: 1; }
+    #right-panel { width: 45%; border-left: 1px solid #333; display: flex; flex-direction: column; }
+    #preview { flex: 1; background: white; }
+    #debug { width: 100%; height: 200px; background: #1e1e1e; color: #0f0; font-family: monospace; font-size: 11px; padding: 10px; overflow-y: auto; border-top: 1px solid #333; }
+    .file { cursor: pointer; margin-bottom: 8px; padding: 5px; border-radius: 3px; }
+    .file:hover { background: #333; }
+    .file.active { background: #4fc3f7; color: black; }
+    .log-entry { margin: 2px 0; }
+    .log-error { color: #ff6b6b; }
+    .log-success { color: #51cf66; }
+    .log-info { color: #74c0fc; }
+    
+    #add-file-btn {
+      padding: 10px;
+      margin-top: 10px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #add-file-btn:hover {
+      background: #45a049;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    
+    .modal.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-content {
+      background-color: #1e1e1e;
+      padding: 20px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: white;
+      min-width: 400px;
+    }
+    
+    .modal input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      background: #2d2d2d;
+      border: 1px solid #444;
+      color: white;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    
+    .modal input::placeholder {
+      color: #888;
+    }
+    
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    
+    .modal button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .modal .btn-primary {
+      background: #4CAF50;
+      color: white;
+    }
+    
+    .modal .btn-primary:hover {
+      background: #45a049;
+    }
+    
+    .modal .btn-secondary {
+      background: #666;
+      color: white;
+    }
+    
+    .modal .btn-secondary:hover {
+      background: #555;
+    }
+  </style>
+
+  <!-- React runtime -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Monaco -->
+  <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
+</head>
+
+<body>
+  <div id="container">
+    <div id="files-panel">
+      <div id="files"></div>
+      <button id="add-file-btn">➕ Добавить файл</button>
+    </div>
+    <div id="editor"></div>
+    <div id="right-panel">
+      <iframe id="preview"></iframe>
+      <div id="debug"></div>
+    </div>
+  </div>
+
+  <!-- Modal для добавления файла -->
+  <div id="addFileModal" class="modal">
+    <div class="modal-content">
+      <h3>Добавить новый файл</h3>
+      <input type="text" id="fileName" placeholder="Например: Card.tsx">
+      <div class="modal-buttons">
+        <button class="btn-secondary" onclick="closeAddFileModal()">Отмена</button>
+        <button class="btn-primary" onclick="createNewFile()">Создать</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+require.config({ paths: { vs: "https://unpkg.com/monaco-editor@0.45.0/min/vs" } });
+
+require(["vs/editor/editor.main"], async function () {
+
+  // ============ DEBUG LOG ============
+  const debugLog = document.getElementById("debug");
+  let logBuffer = [];
+
+  function log(message, type = "info") {
+    const timestamp = new Date().toLocaleTimeString();
+    const entry = `[${timestamp}] ${message}`;
+    console.log(`[${type}] ${entry}`);
+    
+    logBuffer.push({ message: entry, type });
+    if (logBuffer.length > 100) logBuffer.shift();
+    
+    debugLog.innerHTML = logBuffer
+      .map(e => `<div class="log-entry log-${e.type}">${e.message}</div>`)
+      .join('');
+    debugLog.scrollTop = debugLog.scrollHeight;
+  }
+
+  log("🚀 Инициализация редактора...", "info");
+
+  // ============ MONACO SETUP ============
+  const tsDefaults = monaco.languages.typescript.typescriptDefaults;
+
+  tsDefaults.setCompilerOptions({
+    target: monaco.languages.typescript.ScriptTarget.ESNext,
+    module: monaco.languages.typescript.ModuleKind.ESNext,
+    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+    jsx: monaco.languages.typescript.JsxEmit.React,
+    esModuleInterop: true,
+    allowSyntheticDefaultImports: true,
+    strict: true,
+    typeRoots: ["node_modules/@types"]
+  });
+
+  // Загружаем типы
+  async function addType(url, path) {
+    try {
+      const res = await fetch(url);
+      const text = await res.text();
+      tsDefaults.addExtraLib(text, path);
+      log(`✓ Загружены типы: ${path}`, "success");
+    } catch (err) {
+      log(`✗ Ошибка загрузки типов ${path}: ${err.message}`, "error");
+    }
+  }
+
+  await addType(
+    "https://unpkg.com/@types/react@18/index.d.ts",
+    "file:///node_modules/@types/react/index.d.ts"
+  );
+
+  await addType(
+    "https://unpkg.com/@types/react-dom@18/index.d.ts",
+    "file:///node_modules/@types/react-dom/index.d.ts"
+  );
+
+  tsDefaults.addExtraLib(
+`
+declare module "react" {
+  export = React;
+}
+declare module "react-dom/client" {
+  export const createRoot: typeof ReactDOM.createRoot;
+}
+`,
+    "file:///node_modules/custom-global.d.ts"
+  );
+
+  log("✓ Monaco настроен", "success");
+
+  // ============ FILES ============
+  const files = {
+    "types.ts": `export type Todo = {
+  id: number;
+  text: string;
+  completed: boolean;
+};`,
+    "Button.tsx": `import React from "react";
+
+export function Button({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: "8px 16px",
+      marginRight: "8px",
+      cursor: "pointer",
+      background: "#007bff",
+      color: "white",
+      border: "none",
+      borderRadius: "4px",
+      fontSize: "14px"
+    }}>
+      {label}
+    </button>
+  );
+}`,
+    "TodoItem.tsx": `import React from "react";
+import { Button } from "./Button";
+import { Todo } from "./types";
+
+interface TodoItemProps {
+  todo: Todo;
+  onToggle: (id: number) => void;
+  onRemove: (id: number) => void;
+}
+
+export function TodoItem({ todo, onToggle, onRemove }: TodoItemProps) {
+  return (
+    <li 
+      style={{
+        padding: "12px",
+        marginBottom: "8px",
+        background: "#f5f5f5",
+        borderRadius: "4px",
+        display: "flex",
+        alignItems: "center",
+        gap: "10px"
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={todo.completed}
+        onChange={() => onToggle(todo.id)}
+        style={{ cursor: "pointer", width: "18px", height: "18px" }}
+      />
+      <span
+        style={{
+          flex: 1,
+          textDecoration: todo.completed ? "line-through" : "none",
+          color: todo.completed ? "#999" : "#333"
+        }}
+      >
+        {todo.text}
+      </span>
+      <Button label="Удалить" onClick={() => onRemove(todo.id)} />
+    </li>
+  );
+}`,
+    "App.tsx": `import React, { useState } from "react";
+import { Todos } from "./Todos";
+
+export function App() {
+ return (<Todos />)
+}`,
+"Todos.tsx": `import React, { useState } from "react";
+import { Todo } from "./types";
+import { Button } from "./Button";
+import { TodoItem } from "./TodoItem";
+
+export function Todos() {
+
+ const [todos, setTodos] = useState<Todo[]>([]);
+  const [text, setText] = useState("");
+
+  const add = () => {
+    if (!text.trim()) return;
+    setTodos([...todos, { id: Date.now(), text, completed: false }]);
+    setText("");
+  };
+
+  const toggle = (id: number) => {
+    setTodos(todos.map(t => 
+      t.id === id ? { ...t, completed: !t.completed } : t
+    ));
+  };
+
+  const remove = (id: number) => {
+    setTodos(todos.filter(t => t.id !== id));
+  };
+
+  return (
+    <div style={{ padding: 20, fontFamily: "system-ui" }}>
+      <h1>📝 Todos App</h1>
+      
+      <div style={{ marginBottom: 20 }}>
+        <input 
+          value={text} 
+          onChange={e => setText(e.target.value)}
+          onKeyPress={e => e.key === "Enter" && add()}
+          placeholder="Добавить задачу..."
+          style={{
+            padding: "8px 12px",
+            width: "300px",
+            fontSize: "16px",
+            border: "2px solid #ddd",
+            borderRadius: "4px"
+          }}
+        />
+        <Button label="Добавить" onClick={add} />
+      </div>
+
+      <div style={{ fontSize: "14px", color: "#666", marginBottom: "10px" }}>
+        Всего: {todos.length} | Выполнено: {todos.filter(t => t.completed).length}
+      </div>
+
+      {todos.length === 0 ? (
+        <p style={{ color: "#999" }}>Нет задач. Добавьте первую! 🚀</p>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0 }}>
+          {todos.map(todo => (
+            <TodoItem
+              key={todo.id}
+              todo={todo}
+              onToggle={toggle}
+              onRemove={remove}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}`,
+    "index.tsx": `import React from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./App";
+
+createRoot(document.getElementById("root")!)
+  .render(<App />);`
+  };
+
+  const models = {};
+  Object.keys(files).forEach(name => {
+    const uri = monaco.Uri.parse("file:///" + name);
+    models[name] = monaco.editor.createModel(files[name], "typescript", uri);
+  });
+
+  const editor = monaco.editor.create(document.getElementById("editor"), {
+    model: models["App.tsx"],
+    theme: "vs-dark",
+    automaticLayout: true
+  });
+
+  const fileList = document.getElementById("files");
+  let activeFile = "App.tsx";
+
+  // ============ ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ ФАЙЛАМИ ============
+  
+  function renderFileList() {
+    fileList.innerHTML = '';
+    Object.keys(files).forEach(name => {
+      const div = document.createElement("div");
+      div.className = "file" + (name === activeFile ? " active" : "");
+      div.innerText = name;
+      div.onclick = () => selectFile(name);
+      fileList.appendChild(div);
+    });
+  }
+
+  function selectFile(name) {
+    document.querySelectorAll("#files .file").forEach(f => f.classList.remove("active"));
+    const selectedDiv = Array.from(fileList.children).find(el => el.innerText === name);
+    if (selectedDiv) selectedDiv.classList.add("active");
+    activeFile = name;
+    editor.setModel(models[name]);
+    log(`📄 Открыт файл: ${name}`, "info");
+  }
+
+  function openAddFileModal() {
+    document.getElementById("addFileModal").classList.add("active");
+    document.getElementById("fileName").focus();
+    document.getElementById("fileName").value = "";
+  }
+
+  function closeAddFileModal() {
+    document.getElementById("addFileModal").classList.remove("active");
+  }
+
+  function createNewFile() {
+    const fileName = document.getElementById("fileName").value.trim();
+    
+    if (!fileName) {
+      alert("Введите имя файла");
+      return;
+    }
+
+    if (files[fileName]) {
+      alert(`Файл "${fileName}" уже существует`);
+      return;
+    }
+
+    // Определяем тип содержимого на основе расширения
+    let content = "";
+    if (fileName.endsWith(".tsx") || fileName.endsWith(".ts")) {
+      content = `// ${fileName}\n\nexport function MyComponent() {\n  return <div>Hello</div>;\n}`;
+    } else if (fileName.endsWith(".css")) {
+      content = `/* ${fileName} */\n`;
+    } else {
+      content = `// ${fileName}\n`;
+    }
+
+    // Добавляем новый файл
+    files[fileName] = content;
+    const uri = monaco.Uri.parse("file:///" + fileName);
+    models[fileName] = monaco.editor.createModel(content, "typescript", uri);
+
+    log(`✅ Создан файл: ${fileName}`, "success");
+    
+    // Обновляем UI
+    renderFileList();
+    selectFile(fileName);
+    closeAddFileModal();
+    
+    // Запускаем сборку
+    build();
+  }
+
+  // Глобальные функции для кнопок в модальном окне
+  window.openAddFileModal = openAddFileModal;
+  window.closeAddFileModal = closeAddFileModal;
+  window.createNewFile = createNewFile;
+
+  // Обработчик Enter в поле ввода
+  document.getElementById("fileName").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") createNewFile();
+  });
+
+  // Обработчик нажатия на кнопку добавления файла
+  document.getElementById("add-file-btn").addEventListener("click", openAddFileModal);
+
+  // Закрытие модального окна по клику на фон
+  document.getElementById("addFileModal").addEventListener("click", function(e) {
+    if (e.target === this) closeAddFileModal();
+  });
+
+  renderFileList();
+
+  // ============ BUILD & COMPILE ============
+
+  function extractExports(code, originalCode) {
+    const exports = {};
+    
+    const funcMatches = originalCode.matchAll(/export\s+(function|const)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g);
+    for (const match of funcMatches) {
+      const name = match[2];
+      exports[name] = name;
+    }
+
+    const namedMatches = originalCode.matchAll(/export\s*\{\s*([^}]+)\s*\}/g);
+    for (const match of namedMatches) {
+      const names = match[1].split(',').map(n => n.trim());
+      names.forEach(name => {
+        exports[name] = name;
+      });
+    }
+
+    return exports;
+  }
+
+  function transformCode(code, filename) {
+    try {
+      log(`  🔨 Компилирую ${filename}`, "info");
+      
+      const originalCode = code;
+      const exports = extractExports(code, originalCode);
+
+      log(`  → Удаляю export ключевые слова`, "info");
+      let cleaned = code
+        .replace(/export\s+function\s+/g, 'function ')
+        .replace(/export\s+const\s+/g, 'const ')
+        .replace(/export\s+class\s+/g, 'class ')
+        .replace(/export\s+type\s+/g, 'type ')
+        .replace(/export\s+interface\s+/g, 'interface ')
+        .replace(/export\s*\{[^}]*\}/g, '');
+      
+      log(`    ✓ Экспорты удалены`, "success");
+
+      const result = Babel.transform(cleaned, {
+        filename: filename,
+        presets: ["typescript", ["react", { runtime: "automatic" }]],
+        plugins: [
+          ["transform-modules-commonjs", {
+            allowTopLevelThis: true
+          }]
+        ],
+        compact: false,
+        retainLines: true
+      }).code;
+
+      let finalCode = result;
+      if (Object.keys(exports).length > 0) {
+        const exportLines = Object.keys(exports)
+          .map(name => `module.exports.${name} = ${name};`)
+          .join('\n');
+        finalCode = result + '\n' + exportLines;
+        log(`    ✓ Добавлены экспорты: ${Object.keys(exports).join(', ')}`, "success");
+      }
+
+      log(`    ✓ Babel трансформация успешна (${finalCode.length} символов)`, "success");
+      return finalCode;
+    } catch (err) {
+      log(`    ✗ Ошибка при компиляции ${filename}: ${err.message}`, "error");
+      throw err;
+    }
+  }
+
+  function safeStringify(code) {
+    return JSON.stringify(code);
+  }
+
+  function build() {
+    try {
+      log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", "info");
+      log("📦 НАЧИНАЮ СБОРКУ", "info");
+      
+      const compiled = {};
+      Object.keys(models).forEach(filename => {
+        const code = models[filename].getValue();
+        log(`  📋 ${filename}: ${code.length} символов`, "info");
+        compiled[filename] = transformCode(code, filename);
+      });
+
+      log("✓ Все файлы скомпилированы", "success");
+
+      const compiledMap = {};
+      Object.keys(compiled).forEach(filename => {
+        const moduleName = filename.replace(/\.(tsx?|js)$/, '');
+        compiledMap[moduleName] = safeStringify(compiled[filename]);
+      });
+
+      const moduleLoaders = Object.keys(compiledMap)
+        .map(name => {
+          return `if (normalized === '${name}') {
+        if (!cache['${name}']) {
+          const m = { exports: {} };
+          (function(exports, module, require) {
+            eval(${compiledMap[name]});
+          })(m.exports, m, require);
+          cache['${name}'] = m.exports;
+        }
+        return cache['${name}'];
+      }`;
+        })
+        .join('\n\n      ');
+
+      const iframeDoc = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Preview</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"><\/script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"><\/script>
+  <script>
+    console.log("🚀 iframe загружен, React версия:", React.version);
+    
+    const cache = {};
+
+    function require(id) {
+      console.log("require('" + id + "')");
+      
+      if (id === 'react') {
+        console.log("  → возвращаю React");
+        return React;
+      }
+      
+      if (id === 'react-dom/client') {
+        console.log("  → возвращаю ReactDOM.createRoot");
+        return { createRoot: ReactDOM.createRoot };
+      }
+
+      if (id === 'react/jsx-runtime') {
+        console.log("  → возвращаю React.jsx");
+        return {
+          jsx: React.createElement,
+          jsxs: React.createElement,
+          Fragment: React.Fragment
+        };
+      }
+
+      let normalized = id;
+      if (id.startsWith('./')) {
+        normalized = id.slice(2).replace(/\\.(tsx?|js)$/, '');
+      }
+
+      console.log("  normalized:", normalized);
+
+      ${moduleLoaders}
+
+      throw new Error('Unknown module: ' + id);
+    }
+
+    try {
+      console.log("========== ВЫПОЛНЕНИЕ index.tsx ==========");
+      (function() {
+        eval(${compiledMap['index']});
+      })();
+      console.log("========== УСПЕШНО! ==========");
+    } catch (e) {
+      console.error('Runtime error:', e);
+      console.error(e.stack);
+      document.getElementById('root').innerHTML = 
+        '<div style="color: red; padding: 20px; font-family: monospace; white-space: pre-wrap;">' +
+        '<h3>❌ Runtime Error</h3>' +
+        '<pre>' + escapeHtml(e.toString() + '\\n\\n' + e.stack) + '</pre>' +
+        '</div>';
+    }
+
+    function escapeHtml(text) {
+      const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
+      return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+  <\/script>
+</body>
+</html>`;
+
+      log("📝 Загружаю iframe...", "info");
+      document.getElementById("preview").srcdoc = iframeDoc;
+      log("✓ iframe загружен успешно!", "success");
+      log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", "info");
+
+    } catch (err) {
+      log("✗ ОШИБКА СБОРКИ: " + err.message, "error");
+      
+      const errorMsg = (err.message || String(err))
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+        
+      document.getElementById("preview").srcdoc = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8" />
+          <title>Error</title>
+          <style>
+            body { margin: 0; padding: 20px; font-family: monospace; background: #1e1e1e; }
+            pre { color: #f48771; white-space: pre-wrap; word-wrap: break-word; background: #252526; padding: 15px; border-radius: 4px; overflow-x: auto; }
+            h3 { color: #ce9178; }
+          </style>
+        </head>
+        <body>
+          <h3>❌ Compilation Error</h3>
+          <pre>${errorMsg}</pre>
+        </body>
+        </html>
+      `;
+    }
+  }
+
+  // Запускаем сборку при изменении
+  Object.values(models).forEach(m =>
+    m.onDidChangeContent(() => {
+      clearTimeout(window.buildTimeout);
+      window.buildTimeout = setTimeout(() => {
+        log(`📝 Файл изменён (${activeFile})`, "info");
+        build();
+      }, 800);
+    })
+  );
+
+  build();
+});
+</script>
+</body>
+</html>
