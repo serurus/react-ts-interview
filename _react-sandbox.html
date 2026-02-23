@@ -154,6 +154,8 @@ require(["vs/editor/editor.main"], async function () {
   let logBuffer = [];
 
   function log(message, type = "info") {
+    return; // Отключаем логирование (debug) в UI, оставляем только в консоли
+    
     const timestamp = new Date().toLocaleTimeString();
     const entry = `[${timestamp}] ${message}`;
     console.log(`[${type}] ${entry}`);
@@ -271,6 +273,10 @@ createRoot(document.getElementById("root")!)
   function renderFileList() {
     fileList.innerHTML = '';
     Object.keys(files).forEach(name => {
+      // NOTE: Скрываем index.tsx и App.tsx из списка файлов, так как они служат для демонстрации и не должны отвлекать от основной работы
+      if(name === "index.tsx") return; // Скрываем index.tsx из списка файлов
+      if(name === "App.tsx") return; // Скрываем App.tsx из списка файлов
+
       const div = document.createElement("div");
       div.className = "file" + (name === activeFile ? " active" : "");
       div.innerText = name;
@@ -481,6 +487,10 @@ createRoot(document.getElementById("root")!)
   <script src="https://unpkg.com/react@18/umd/react.development.js"><\/script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"><\/script>
   <script>
+    // NOTE: Переопределяем console.log и console.debug, чтобы отключить их в консоли браузера
+    console.log = () => {};
+    console.debug = () => {};
+    
     console.log("🚀 iframe загружен, React версия:", React.version);
     
     const cache = {};
